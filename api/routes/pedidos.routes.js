@@ -45,7 +45,7 @@ export default function pedidosRoutes({ pool, sql, verifyFirebaseToken }) {
   // === Creación manual (sin cotización) ===
   router.post(
     '/manual',
-    requireRole(['Admin', 'Supervisor']), // solo Admin/Supervisor
+    requireRole(['Admin', 'Supervisor', 'Vendedor']), // solo Admin/Supervisor
     pedCtrl.createManual
   );
 

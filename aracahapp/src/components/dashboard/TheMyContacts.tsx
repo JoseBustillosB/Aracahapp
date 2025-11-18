@@ -1,128 +1,151 @@
+/* =====================================================
+   DASHBOARD DE RESUMEN DE Mis productos más vendidos
+===================================================== */
 
+import { useEffect, useState } from 'react';
 import {
   Typography,
-  Avatar,
   Box,
   Card,
   List,
   ListItem,
-  ListItemAvatar,
   ListItemText,
   ListItemButton,
-  Badge,
   CardContent,
-  IconButton,
-} from "@mui/material";
+} from '@mui/material';
+import { useAuth } from 'src/context/AuthContext';
 
-import { Icon } from "@iconify/react";
-import user9 from 'src/assets/images/profile/user-9.jpg';
-import user2 from 'src/assets/images/profile/user-2.jpg';
-import user3 from 'src/assets/images/profile/user-4.jpg';
-
-
-
-const contacts = [
-  {
-    img: user9,
-    title: "James Smith",
-    subtext: "you were in video call",
-    status: "primary.main",
-  },
-  {
-    img: user2,
-    title: "Joseph Garciar",
-    subtext: "you were in video call",
-    status: "secondary.main",
-  },
-  {
-    img: user3,
-    title: "Maria Rodriguez",
-    subtext: "you missed john call",
-    status: "error.main",
-  },
-];
+type TopProdItem = {
+  sku: string;
+  nombre: string;
+  cantidad_total: number;
+  total_vendido: number;
+};
 
 const MyContacts = () => {
-  return (
-    <>
-      <Card variant="outlined" sx={{ p: 0 }}>
-        <CardContent sx={{ pb: 1 }}>
-          <Box>
-            <Typography variant="h5">My Contacts</Typography>
-            <Typography variant="subtitle1" color='textSecondary'>
-              Checkout my contacts here
-            </Typography>
-          </Box>
-        </CardContent>
-        <Box>
-          <List>
-            {contacts.map((contact, i) => (
-              <ListItem
-                key={i}
-                sx={{
-                  p: 0,
-                  '& .MuiListItemSecondaryAction-root': {
-                    right: '30px'
-                  }
-                }}
-                secondaryAction={
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <IconButton edge="end" size="small" aria-label="delete" color="error">
-                      <Icon icon="solar:videocamera-linear" height={18} />
-                    </IconButton>
-                    <IconButton edge="end" size="small" aria-label="delete" color="primary">
-                      <Icon icon="solar:incoming-call-linear" height={18} />
-                    </IconButton>
-                  </Box>
-                }
-              >
-                <ListItemButton
-                  sx={{
-                    gap: "12px",
-                    padding: "15px  30px",
-                  }}
-                >
-                  <ListItemAvatar>
-                    <Badge
-                      variant="dot"
-                      sx={{
-                        ".MuiBadge-badge": {
-                          backgroundColor: contact.status,
-                          top: "5px",
-                          right: "8px",
-                          border: "1px solid",
-                          borderColor: "background.paper",
-                        },
-                      }}
-                    >
-                      <Avatar
-                        src={contact.img}
-                        alt="user-1"
-                        sx={{ width: 48, height: 48 }}
-                      />
-                    </Badge>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={contact.title}
-                    secondary={contact.subtext}
-                    slotProps={{
-                      primary: {
-                        fontSize: "16px",
-                        fontWeight: 500,
-                        mb: "4px",
-                      },
+  const authCtx: any = useAuth() || {};
+  const { idToken, firebaseUser, perfil } = authCtx;
 
-                      secondary: {
-                        fontSize: "14px",
+  const rawRole =
+    (perfil?.nombre_rol ||
+      perfil?.rol ||
+      perfil?.nombreRol ||
+      perfil?.role ||
+      '') as string;
+  const role = (rawRole || 'admin').toString().toLowerCase();
+  const isVendedor = role === 'vendedor';
+
+  const vendedorId =
+    perfil?.id_vendedor ||
+    perfil?.id_usuario ||
+    perfil?.correo ||
+    firebaseUser?.email ||
+    firebaseUser?.uid ||
+    null;
+
+  const [items, setItems] = useState<TopProdItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        if (!idToken) return;
+        setLoading(true);
+        setError('');
+
+        let url = 'http://localhost:3001/api/reportes/top-productos?top=5';
+        if (isVendedor && vendedorId) {
+          url += `&vendedor=${encodeURIComponent(String(vendedorId))}`;
+        }
+
+        const r = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const js = await r.json();
+        const arr: TopProdItem[] = (js.items || []).map((x: any) => ({
+          sku: String(x.sku ?? ''),
+          nombre: String(x.nombre ?? x.producto ?? ''),
+          cantidad_total: Number(x.cantidad_total ?? x.cantidad ?? 0),
+          total_vendido: Number(x.total_vendido ?? x.total ?? 0),
+        }));
+
+        setItems(arr);
+      } catch (e: any) {
+        setError(e.message || 'Error al cargar top productos');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [idToken, isVendedor, vendedorId]);
+
+  const titulo = isVendedor ? 'Mis productos más vendidos' : 'Top productos';
+  const subtitulo = isVendedor
+    ? 'Productos que yo he vendido en el período consultado.'
+    : 'Productos más vendidos en el período consultado.';
+
+  return (
+    <Card sx={{ height: '100%' }} variant="outlined">
+      <CardContent>
+        <Typography variant="h6" fontWeight={700} mb={0.5}>
+          {titulo}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mb={2}>
+          {subtitulo}
+        </Typography>
+
+        {loading && (
+          <Typography variant="body2" color="text.secondary">
+            Cargando productos...
+          </Typography>
+        )}
+
+        {error && (
+          <Typography variant="body2" color="error">
+            {error}
+          </Typography>
+        )}
+
+        {!loading && !error && items.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            No hay datos de productos.
+          </Typography>
+        )}
+
+        {!loading && !error && items.length > 0 && (
+          <Box mt={1}>
+            <List disablePadding>
+              {items.map((prod, idx) => (
+                <ListItem key={`${prod.sku}-${idx}`} disableGutters disablePadding>
+                  <ListItemButton sx={{ py: 1, px: 1 }} disableRipple disableTouchRipple>
+                    <ListItemText
+                      primary={
+                        <Typography variant="subtitle2" fontWeight={600}>
+                          #{idx + 1} {prod.nombre}
+                        </Typography>
                       }
-                    }} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-      </Card>
-    </>
+                      secondary={
+                        <Typography variant="caption" color="text.secondary">
+                          SKU: {prod.sku} &nbsp;|&nbsp; Cantidad:{' '}
+                          {prod.cantidad_total.toLocaleString()} &nbsp;|&nbsp; Total
+                          vendido L. {prod.total_vendido.toLocaleString()}
+                        </Typography>
+                      }
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

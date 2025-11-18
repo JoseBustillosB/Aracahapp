@@ -1,45 +1,34 @@
+import { Link } from 'react-router-dom';
+import { Typography, Box, styled } from '@mui/material';
 
-import { Link } from 'react-router';
-import { styled } from '@mui/material';
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { ReactComponent as LogoDark } from 'src/assets/images/logos/dark-logo.svg';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { ReactComponent as LogoDarkRTL } from 'src/assets/images/logos/logo-icon.svg';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { ReactComponent as LogoLight } from 'src/assets/images/logos/light-logo.svg';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { ReactComponent as LogoLightRTL } from 'src/assets/images/logos/light-rtl-logo.svg';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { ReactComponent as MiniLogoLightRTL } from 'src/assets/images/logos/logo-light-icon.svg';
-
-
+const LinkStyled = styled(Link)(() => ({
+  height: '64px',
+  width: '180px',
+  overflow: 'hidden',
+  display: 'flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+}));
 
 const Logo = () => {
-
-
-
-  const LinkStyled = styled(Link)(() => ({
-    height: '64px',
-    width:  '180px',
-    overflow: 'hidden',
-    display: 'block',
-  }));
-
   return (
-    <LinkStyled
-      to="/"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-      }}
-    >
-      { <LogoLight />}
+    <LinkStyled to="/dashboard">
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Typography
+          variant="h5"
+          fontWeight={700}
+          sx={{
+            background: 'linear-gradient(90deg, #ffffff, #d8e3ff)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: 1.8,
+            textTransform: 'uppercase',
+            fontSize: '1.4rem',
+          }}
+        >
+        ARACAH
+        </Typography>
+      </Box>
     </LinkStyled>
   );
 };

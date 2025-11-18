@@ -61,7 +61,7 @@ const Sidebar = () => {
             >
               <Profile />
                
-              <Scrollbar sx={{ height: "calc(100% - 270px)" }}>
+              <Scrollbar sx={{ height: "calc(100% - 320px)" }}>
 
                 {/* ------------------------------------------- */}
                 {/* Sidebar Items */}

@@ -1,4 +1,33 @@
+// cotizaciones.controller.js
 import { pool, sql, poolConnect } from '../db/pool.js';
+
+/* =====================================================
+   Helper: obtener id_usuario (dbo.usuarios) desde el token Firebase
+   - Busca por correo (req.user.email)
+===================================================== */
+async function getCurrentUserId(req) {
+  try {
+    const email = req.user?.email;
+    if (!email) return null;
+
+    await poolConnect;
+
+    const r = await pool.request()
+      .input('correo', sql.VarChar(320), email)
+      .query(`
+        SELECT TOP 1 id_usuario
+        FROM dbo.usuarios
+        WHERE correo = @correo
+          AND (activo = 1 OR activo IS NULL)
+      `);
+
+    const id = r.recordset?.[0]?.id_usuario;
+    return id ? Number(id) : null;
+  } catch (err) {
+    console.error('getCurrentUserId (cotizaciones) error:', err);
+    return null;
+  }
+}
 
 /* =====================================================
     LISTAR COTIZACIONES (usa sp_cot_list)
@@ -48,7 +77,6 @@ export async function getCotizacion(req, res) {
 
     if (!r.recordsets[0]?.length) return res.status(404).json({ error: 'No encontrado' });
 
-    // Estructura amigable para el FE
     const header  = r.recordsets[0][0];
     const detalle = r.recordsets[1] || [];
     res.json({ header, detalle });
@@ -60,6 +88,7 @@ export async function getCotizacion(req, res) {
 
 /* =====================================================
    CREAR COTIZACIÓN (usa sp_generar_cotizacion)
+   - Aquí ligamos id_usuario_vendedor
 ===================================================== */
 export async function createCotizacion(req, res) {
   try {
@@ -71,13 +100,12 @@ export async function createCotizacion(req, res) {
       return res.status(400).json({ error: 'id_cliente y detalle son obligatorios' });
     }
 
-    // Table-Valued Parameter dbo.tt_linea (id_producto, cantidad, precio_unitario)
+    // TVP dbo.tt_linea (id_producto, cantidad, precio_unitario)
     const tvp = new sql.Table('dbo.tt_linea');
     tvp.columns.add('id_producto',     sql.Int);
     tvp.columns.add('cantidad',        sql.Int);
     tvp.columns.add('precio_unitario', sql.Decimal(12,2));
 
-    // Permitimos que precio_unitario venga null → SP tomará precio cat.
     for (const item of detalle) {
       tvp.rows.add(
         Number(item.id_producto),
@@ -86,28 +114,26 @@ export async function createCotizacion(req, res) {
       );
     }
 
-    const out = await pool.request()
-      .input('id_cliente',    sql.Int,         Number(id_cliente))
-      .input('lineas',        tvp)
-      .input('valida_hasta',  sql.Date,        valida_hasta || null)
-      .input('descripcion',   sql.NVarChar(sql.MAX), descripcion || null)
-      .input('numero', sql.VarChar(30), null)                // dejamos que el SP genere el correlativo
-      .output('id_cotizacion', sql.Int)                     // <<< output 1
-      .output('numero_out', sql.VarChar(30))                // <<< output 2 (nuevo)
-      .execute('dbo.sp_generar_cotizacion');
-      /*
-      .input('numero',        sql.VarChar(30), null)
-      .input('id_usuario',    sql.Int,         req.user?.id_usuario || null)
-      .input('ip',            sql.VarChar(64), req.ip || null)
-      .input('user_agent',    sql.NVarChar(512), req.headers['user-agent'] || null)
-      .output('id_cotizacion', sql.Int)
-      .execute('dbo.sp_generar_cotizacion');
-      */
+    // 👇 vendedor que está logueado (independiente de rol)
+    const idUsuarioVendedor = await getCurrentUserId(req);
 
-    res.status(201).json({ id_cotizacion: out.output.id_cotizacion, numero: out.output.numero_out });
+    const out = await pool.request()
+      .input('id_cliente',          sql.Int,         Number(id_cliente))
+      .input('lineas',              tvp)
+      .input('valida_hasta',        sql.Date,        valida_hasta || null)
+      .input('descripcion',         sql.NVarChar(sql.MAX), descripcion || null)
+      .input('numero',              sql.VarChar(30), null)          // que el SP genere número
+      .input('id_usuario_vendedor', sql.Int,         idUsuarioVendedor || null)
+      .output('id_cotizacion',      sql.Int)
+      .output('numero_out',         sql.VarChar(30))
+      .execute('dbo.sp_generar_cotizacion');
+
+    res.status(201).json({
+      id_cotizacion: out.output.id_cotizacion,
+      numero:        out.output.numero_out,
+    });
   } catch (e) {
     console.error('createCotizacion error:', e);
-    // Si el error viene vacío, devolvemos algo legible
     const msg = e?.originalError?.info?.message || e.message || 'Error al crear la cotización';
     res.status(500).json({ error: msg });
   }
@@ -187,19 +213,24 @@ export async function rejectCotizacion(req, res) {
 
 /* =====================================================
     CONFIRMAR COTIZACIÓN → PEDIDO (sp_confirmar_pedido_desde_cotizacion)
+    - Aquí no mandamos vendedor: lo toma de la cotización.
 ===================================================== */
 export async function confirmToPedido(req, res) {
   try {
     await poolConnect;
     const id = parseInt(req.params.id, 10);
-    const { recalcular_precios = 0, numero_pedido = null, fecha_compromiso = null } = req.body || {};
+    const {
+      recalcular_precios = 0,
+      numero_pedido = null,
+      fecha_compromiso = null,
+    } = req.body || {};
 
     const out = await pool.request()
       .input('id_cotizacion',      sql.Int, id)
       .input('recalcular_precios', sql.Bit, !!recalcular_precios)
       .input('numero_pedido',      sql.VarChar(30), numero_pedido)
       .input('fecha_compromiso',   sql.Date, fecha_compromiso)
-      .input('id_usuario',         sql.Int, req.user?.id_usuario || null)
+      .input('id_usuario',         sql.Int, req.user?.id_usuario || null) // admin/super que confirma
       .input('ip',                 sql.VarChar(64), req.ip || null)
       .input('user_agent',         sql.NVarChar(512), req.headers['user-agent'] || null)
       .output('id_pedido_out',     sql.Int)
@@ -233,8 +264,6 @@ export async function deleteCotizacion(req, res) {
 
 /* =====================================================
     AUX: PRODUCTO LITE (usa sp_producto_lite)
-   - Permite buscar por ?id_producto=123 o ?sku=ABC-001
-   - Respuesta normalizada: { item: {...} }
 ===================================================== */
 export async function productoLite(req, res) {
   try {

@@ -81,7 +81,10 @@ export default function PedidoView() {
       const r2 = await fetch(`http://localhost:3001/api/pedidos/${id}/detalle`, { headers });
       if (!r2.ok) throw new Error(await r2.text());
       const js2 = await r2.json();
-      setDetalle(js2.items || []);
+
+      // El backend devuelve actualmente un array [], pero soportamos también { items: [...] }
+      const detalleData: Linea[] = Array.isArray(js2) ? js2 : (js2.items || []);
+      setDetalle(detalleData);
     } catch (e: any) {
       setErr(e.message || 'Error cargando pedido');
     }

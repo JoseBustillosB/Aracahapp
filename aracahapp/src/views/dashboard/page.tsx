@@ -13,8 +13,23 @@ import { useMemo } from 'react';
 import { auth } from 'src/lib/firebase';
 
 export default function Dashboard() {
-  const { firebaseUser } = useAuth();
+  const authCtx = useAuth();
+  const firebaseUser = authCtx?.firebaseUser;
+  const perfil: any = (authCtx as any)?.perfil;
   const navigate = useNavigate();
+
+  // Rol normalizado (admin | supervisor | vendedor)
+  const rawRole =
+    (perfil?.nombre_rol ||
+      perfil?.rol ||
+      perfil?.nombreRol ||
+      perfil?.role ||
+      '') as string;
+
+  const role = (rawRole || 'admin').toString().toLowerCase();
+  const isAdmin = role === 'admin';
+  const isSupervisor = role === 'supervisor';
+  const canSeeOps = isAdmin || isSupervisor;
 
   // Detectar si el usuario ya tiene 2FA activado
   const isMfaOn = useMemo(() => {
@@ -62,6 +77,7 @@ export default function Dashboard() {
 
       {/* Contenido principal del dashboard */}
       <Grid container spacing={3}>
+        {/* Fila 1: Ventas + Pedidos por estado (todos los roles) */}
         <Grid
           size={{
             xs: 12,
@@ -80,10 +96,11 @@ export default function Dashboard() {
           <OurVisitors />
         </Grid>
 
+        {/* Fila 2: Resumen + Top productos */}
         <Grid
           size={{
             xs: 12,
-            lg: 4,
+            lg: canSeeOps ? 4 : 12,
           }}
         >
           <Grid container spacing={3}>
@@ -96,14 +113,17 @@ export default function Dashboard() {
           </Grid>
         </Grid>
 
-        <Grid
-          size={{
-            xs: 12,
-            lg: 8,
-          }}
-        >
-          <ActivityTimeline />
-        </Grid>
+        {/* Fila 2 (lado derecho): OP recientes (solo admin / supervisor) */}
+        {canSeeOps && (
+          <Grid
+            size={{
+              xs: 12,
+              lg: 8,
+            }}
+          >
+            <ActivityTimeline />
+          </Grid>
+        )}
       </Grid>
     </Box>
   );
