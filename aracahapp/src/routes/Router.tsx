@@ -58,6 +58,9 @@ const OPView = lazy(() => import('src/views/op/OPView'));
 const EntregasList = lazy(() => import('src/views/entregas/EntregasList'));
 const EntregaView  = lazy(() => import('src/views/entregas/EntregaView'));
 
+/* ===== Usuarios ===== */
+const UsuariosList = lazy(() => import('src/views/usuarios/UsuariosList'));
+
 /* ===== Auth context / guards ===== */
 import { AuthProvider } from '../context/AuthContext';
 import ProtectedRoute from '../components/ProtectedRoute';
@@ -287,6 +290,18 @@ const Router = [
           <ProtectedRoute>
             <RoleRoute roles={['Supervisor','Admin']}>
               <ReportesView />
+            </RoleRoute>
+          </ProtectedRoute>
+        ),
+      },
+
+      /* ===== Usuarios ===== */
+      {
+        path: '/usuarios',
+        element: (
+          <ProtectedRoute>
+            <RoleRoute roles={['Supervisor','Admin']}>
+              <UsuariosList/>
             </RoleRoute>
           </ProtectedRoute>
         ),

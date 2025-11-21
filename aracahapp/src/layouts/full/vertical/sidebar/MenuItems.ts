@@ -107,6 +107,14 @@ const Menuitems: MenuitemsType[] = [
     href: '/settings/mfa-sms',
   },
 
+  {
+  id: uniqueId(),
+  title: 'Usuarios',
+  icon: 'users-group-rounded-linear',
+  href: '/usuarios',
+  roles: ['admin',], // solo estos lo ven
+}
+
   // (Si quieres puedes dejar una sección de “Utilidades” con las páginas demo,
   // pero por ahora la quito para que el menú quede limpio y enfocado al sistema.)
 ];

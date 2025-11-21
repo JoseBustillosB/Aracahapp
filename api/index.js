@@ -16,6 +16,7 @@ import materialesRoutes from './routes/materiales.routes.js';
 import opRoutes from './routes/op.routes.js';
 import entregasRoutes from './routes/entregas.routes.js';
 import reportesRoutes from './routes/reportes.routes.js';
+import usuariosRoutes from './routes/usuarios.routes.js';
 //import makeEntregasRoutes from './routes/entregas.routes.js';
 
 
@@ -79,7 +80,7 @@ app.post('/api/sync-user', verifyFirebaseToken, async (req, res) => {
     const request = pool.request();
     request.input('correo', sql.VarChar, email);
     request.input('nombre', sql.NVarChar, name || email);
-    request.input('rolDefecto', sql.VarChar, 'cliente');
+    request.input('rolDefecto', sql.VarChar, 'vendedor');
     request.output('id_usuario_out', sql.Int);
     request.output('id_cliente_out', sql.Int);
 
@@ -122,6 +123,9 @@ app.use('/api/entregas', entregasRoutes({ pool, sql, verifyFirebaseToken }));
 
 //Reportes
 app.use('/api/reportes', reportesRoutes({ pool, sql }));
+
+//Usuarios
+app.use('/api/usuarios', usuariosRoutes(pool, sql));
 
 //app.use('/api/entregas', makeEntregasRoutes(pool, sql));
 
